@@ -18,6 +18,17 @@ export default function LandingPage({ onGetStarted }) {
               <p className="brand-subtitle">AI Clinical Information Intelligence</p>
             </div>
           </div>
+
+          <div
+            className="header-safety-indicator"
+            title="MedLens is an information organizer and never diagnoses or prescribes."
+          >
+            <ShieldAlert size={16} className="safety-icon" />
+            <div className="safety-indicator-text">
+              <span className="safety-badge-title">Information Organizer</span>
+              <span className="safety-badge-subtitle">Not a Diagnostic Tool</span>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -38,13 +49,6 @@ export default function LandingPage({ onGetStarted }) {
             <button type="button" className="btn btn-primary btn-hero" onClick={onGetStarted}>
               Get Started <ArrowRight size={18} />
             </button>
-          </div>
-
-          <div className="landing-safety-banner">
-            <ShieldAlert size={18} className="landing-safety-icon" />
-            <span>
-              MedLens is an information organizer, not a diagnostic tool. It does not provide diagnosis or treatment recommendations.
-            </span>
           </div>
         </div>
 
@@ -81,12 +85,6 @@ export default function LandingPage({ onGetStarted }) {
           </div>
         </div>
       </main>
-
-      {/* Landing Footer */}
-      <footer className="landing-footer">
-        <p>Built for PromptWars • AI Clinical Information Intelligence</p>
-      </footer>
     </div>
   );
 }
-

@@ -143,9 +143,6 @@ export default function ReportInput({
           </div>
         </div>
         <div className="header-actions-group">
-          <button type="button" className="btn btn-tertiary btn-sm" onClick={loadDemoSample} title="Load sample lab report for preview">
-            <RefreshCw size={13} /> Load Sample Lab Report
-          </button>
           <ProvenanceTag category="Extracted from report" showLabelPrefix={true} />
         </div>
       </div>

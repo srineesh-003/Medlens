@@ -298,18 +298,11 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm demo-sample-btn"
-                    onClick={handleLoadDemoSample}
-                  >
-                    <RefreshCw size={13} /> Try Demo Sample
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-tertiary btn-sm"
+                    className="btn btn-secondary btn-sm"
                     onClick={handleClearWorkspace}
-                    title="Clear workspace inputs"
+                    title="Clear workspace to enter a new record"
                   >
-                    <PlusCircle size={13} /> Clear / New
+                    <PlusCircle size={14} /> Add New Record
                   </button>
                 </div>
               </div>
