@@ -13,6 +13,7 @@ export default function ReportInput({
   errorMessage,
   uploadedFileName = '',
   setUploadedFileName = () => {},
+  onOcrComplete = () => {},
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [lastProcessed, setLastProcessed] = useState(false);
@@ -114,6 +115,7 @@ export default function ReportInput({
 
       if (ocrResult.rawText && ocrResult.rawText.length > 0) {
         setReportText(ocrResult.rawText);
+        onOcrComplete(ocrResult);
       } else {
         setFileError('No readable text could be recognized in the cropped image scan. Try selecting a larger area or improving image resolution.');
       }
@@ -149,6 +151,7 @@ export default function ReportInput({
 
       if (ocrResult.rawText && ocrResult.rawText.length > 0) {
         setReportText(ocrResult.rawText);
+        onOcrComplete(ocrResult);
       } else {
         setFileError('No readable text recognized in image scan.');
       }

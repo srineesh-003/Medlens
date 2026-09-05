@@ -287,3 +287,4 @@ export default function ImageCropper({ imageSrc, onCropConfirm, onCancel }) {
     </div>
   );
 }
+

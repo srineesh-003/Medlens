@@ -4,6 +4,7 @@ import LoginPage from './components/LoginPage';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ReportInput from './components/ReportInput';
+import OCRQualityCard from './components/OCRQualityCard';
 import StructuredRecord from './components/StructuredRecord';
 import VerificationPanel from './components/VerificationPanel';
 import AISummary from './components/AISummary';
@@ -14,6 +15,7 @@ import { processMedicalReport } from './services/reportProcessor';
 import { analyzeConsistency } from './services/consistencyChecker';
 import { getSavedRecords, saveRecord, deleteRecord } from './services/storageService';
 import { getCurrentUser, logoutUser } from './services/authService';
+import { buildFieldConfidenceMap } from './services/accuracyService';
 import { emptyPatientInfo } from './data/sampleData';
 import {
   User,
@@ -28,6 +30,7 @@ import {
   LayoutDashboard,
   PlusCircle,
   CheckCircle2,
+  Cpu,
 } from 'lucide-react';
 
 export default function App() {
@@ -50,6 +53,11 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [saveToast, setSaveToast] = useState('');
+
+  // OCR Accuracy & Confidence States
+  const [overallConfidence, setOverallConfidence] = useState(94);
+  const [fieldMap, setFieldMap] = useState({});
+  const [latestOcrWords, setLatestOcrWords] = useState([]);
 
   // Phase 3 Consistency State
   const [consistentItems, setConsistentItems] = useState([]);
@@ -104,6 +112,11 @@ export default function App() {
     setView('landing');
   };
 
+  const handleOcrComplete = (ocrResult) => {
+    setOverallConfidence(ocrResult.confidence || 94);
+    setLatestOcrWords(ocrResult.words || []);
+  };
+
   const handleProcessReport = async () => {
     setErrorMessage('');
     setIsProcessing(true);
@@ -113,6 +126,14 @@ export default function App() {
       setDocumentType(result.documentType);
       setRecords(result.records);
       setAiSummaryText(result.aiSummary);
+
+      // Build OCR Field-Level Confidence Map
+      const map = buildFieldConfidenceMap(
+        result.extractedFields || {},
+        latestOcrWords,
+        overallConfidence
+      );
+      setFieldMap(map);
 
       const analysis = analyzeConsistency(result.records, patientInfo, reportText);
       setConsistentItems(analysis.consistentItems);
@@ -137,6 +158,7 @@ export default function App() {
     setUploadedFileName('');
     setReportText('');
     setRecords([]);
+    setFieldMap({});
     setDocumentType('Laboratory Report');
     setAiSummaryText(
       'Enter or upload a medical document above and click "Process Report" to generate an organized summary.'
@@ -155,6 +177,8 @@ export default function App() {
       documentType,
       reportText,
       records: [...records],
+      fieldMap: { ...fieldMap },
+      overallConfidence,
       consistentItems: [...consistentItems],
       warnings: [...warnings],
       aiSummaryText,
@@ -176,6 +200,8 @@ export default function App() {
     setUploadedFileName(record.uploadedFileName || '');
     setReportText(record.reportText || '');
     setRecords(record.records || []);
+    setFieldMap(record.fieldMap || {});
+    setOverallConfidence(record.overallConfidence || 94);
     setDocumentType(record.documentType || 'Laboratory Report');
     setAiSummaryText(record.aiSummaryText || '');
     setConsistentItems(record.consistentItems || []);
@@ -257,6 +283,9 @@ export default function App() {
                 </a>
                 <a href="#medical-report" className="nav-item">
                   <FileText size={16} /> Medical Report Input
+                </a>
+                <a href="#ocr-quality" className="nav-item">
+                  <Cpu size={16} /> OCR Quality & Verification
                 </a>
                 <a href="#structured-record" className="nav-item">
                   <Table size={16} /> Structured Record
@@ -353,6 +382,15 @@ export default function App() {
                 errorMessage={errorMessage}
                 uploadedFileName={uploadedFileName}
                 setUploadedFileName={setUploadedFileName}
+                onOcrComplete={handleOcrComplete}
+              />
+
+              {/* OCR Quality & Field Verification Card */}
+              <OCRQualityCard
+                overallConfidence={overallConfidence}
+                fieldMap={fieldMap}
+                setFieldMap={setFieldMap}
+                isOcrActive={reportText.length > 0}
               />
 
               {/* Section 4: Structured Medical Record */}

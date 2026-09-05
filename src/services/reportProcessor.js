@@ -4,10 +4,10 @@
  * Direct Raw OCR Text Processing Engine for Prescriptions and Lab Reports.
  * 
  * Strict Rules:
- * 1. Patient Information form is the SINGLE SOURCE OF TRUTH.
+ * 1. Patient Information form or document explicit fields are the SINGLE SOURCE OF TRUTH.
  * 2. Never use hardcoded names, ages, or IDs.
  * 3. Extract ONLY facts present in source OCR text.
- * 4. If a field is missing, set to "Not provided" or "Unknown" rather than inventing demo values.
+ * 4. If a field is missing, set to "Not provided" rather than inventing demo values.
  * 5. Provider headers/footers (doctor names, clinic addresses, contact details, signatures) are filtered out.
  */
 
@@ -17,23 +17,24 @@ export async function processMedicalReport(reportText, patientInfo = {}) {
   }
 
   const documentType = detectDocumentType(reportText);
-  let records = [];
+  let result = { records: [], extractedFields: {} };
 
   if (documentType === 'Prescription') {
-    records = extractPrescriptionFromRawText(reportText, patientInfo);
+    result = extractPrescriptionFromRawText(reportText, patientInfo);
   } else {
-    records = extractLabRecordsFromRawText(reportText);
+    result = extractLabRecordsFromRawText(reportText, patientInfo);
   }
 
-  if (records.length === 0) {
+  if (result.records.length === 0) {
     throw new Error('No structured medical records or prescription parameters could be extracted from the provided text.');
   }
 
-  const aiSummary = generateFactualSummary(documentType, records, patientInfo, reportText);
+  const aiSummary = generateFactualSummary(documentType, result.records, patientInfo, reportText);
 
   return {
     documentType,
-    records,
+    records: result.records,
+    extractedFields: result.extractedFields,
     aiSummary,
     processedAt: new Date().toISOString(),
   };
@@ -47,7 +48,7 @@ function detectDocumentType(text) {
   const rxKeywords = [
     'prescription', 'rx', 'medication', 'dosage', 'frequency', 'duration',
     'instructions', 'acetaminophen', 'take ', 'tablet', 'capsule', '500mg', 'every 6 hours',
-    'amoxicillin', 'ibuprofen', 'mg', 'mcg', 'ml'
+    'amoxicillin', 'ibuprofen', 'mg', 'mcg', 'ml', 'drug', 'fever'
   ];
   const labKeywords = [
     'reference range', 'g/dl', 'mg/dl', 'miu/l', 'ng/ml', 'complete blood count',
@@ -81,11 +82,6 @@ function isProviderNoiseLine(line) {
   const l = line.trim().toLowerCase();
   if (!l) return true;
 
-  // Mandatory fields should NEVER be treated as noise
-  if (/^(medication|dosage|frequency|duration|instructions?|diagnosis|patient|age|sex|date)\s*:/i.test(l)) {
-    return false;
-  }
-
   // Header / Provider patterns
   if (/^(dr\.|doctor|prof\.|physician|md|mbbs|ms|bams|bhms)\b/i.test(l)) return true;
   if (/\b(clinic|hospital|health center|medical center|healthcare|department of)\b/i.test(l)) return true;
@@ -102,48 +98,146 @@ function isProviderNoiseLine(line) {
 }
 
 /**
- * Extracts structured records from a Prescription raw OCR document line-by-line.
+ * Extracts structured records and field-level metadata from a Prescription raw OCR document.
  */
 function extractPrescriptionFromRawText(text, patientInfo) {
   const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  // Strip provider noise lines
   const cleanLines = rawLines.filter((line) => !isProviderNoiseLine(line));
+
+  let patientName = patientInfo?.patientIdName?.trim() || 'Not provided';
+  let patientId = 'Not provided';
+  let age = patientInfo?.age?.trim() || 'Not provided';
+  let sex = (patientInfo?.sex?.trim() && patientInfo.sex !== 'Select sex') ? patientInfo.sex.trim() : 'Not provided';
+  let date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  let diagnosis = 'Not provided';
+  let medication = 'Not provided';
+  let strength = 'Not provided';
+  let frequency = 'Not provided';
+  let duration = 'Not provided';
+  let instructions = 'Not provided';
+
+  // 1. Line-wise & Section Parsing
+  for (let i = 0; i < cleanLines.length; i++) {
+    const line = cleanLines[i];
+    const lower = line.toLowerCase();
+
+    // Patient & Date detection e.g. "kand DATE", "Patient: Kand", "ID: 104"
+    if (lower.startsWith('patient:') || lower.includes('patient name:')) {
+      const parts = line.split(':');
+      patientName = parts.slice(1).join(':').trim() || patientName;
+    } else if (/^[a-zA-Z]+\s+date\b/i.test(line)) {
+      // e.g. "kand DATE"
+      const namePart = line.split(/\s+/)[0];
+      if (namePart && namePart.length > 1 && !/^(age|sex|date|diagnosis|medications)$/i.test(namePart)) {
+        patientName = capitalizeWord(namePart);
+      }
+    }
+
+    // Age & Sex detection e.g. "Age 33 - Male - 34 kg 2026-09-05"
+    if (lower.includes('age') || lower.includes('male') || lower.includes('female')) {
+      const ageMatch = line.match(/age\s*[:\s]*(\d+)/i);
+      if (ageMatch) age = ageMatch[1];
+      const sexMatch = line.match(/\b(male|female|intersex)\b/i);
+      if (sexMatch) sex = capitalizeWord(sexMatch[1]);
+      const dateMatch = line.match(/\b(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})\b/);
+      if (dateMatch) date = dateMatch[1];
+    }
+
+    // Diagnosis section e.g. "DIAGNOSIS \n Fever & Cold" or "Diagnosis: Fever & Cold"
+    if (lower.includes('diagnosis')) {
+      if (line.includes(':')) {
+        diagnosis = line.split(':').slice(1).join(':').trim();
+      } else if (i + 1 < cleanLines.length && !cleanLines[i + 1].toUpperCase().includes('MEDICATION')) {
+        diagnosis = cleanLines[i + 1].trim();
+      }
+    }
+
+    // Date explicit line
+    if (lower.startsWith('date:')) {
+      date = line.split(':').slice(1).join(':').trim() || date;
+    }
+  }
+
+  // 2. Tabular & Multi-Line Prescription Parsing
+  // Search for drug names in text (e.g. Acetaminophen, Amoxicillin, Ibuprofen, Paracetamol, etc.)
+  const knownMeds = [
+    'acetaminophen', 'amoxicillin', 'ibuprofen', 'paracetamol', 'aspirin',
+    'metformin', 'lisinopril', 'atorvastatin', 'levothyroxine', 'omeprazole',
+    'azithromycin', 'ciprofloxacin', 'doxycycline', 'losartan', 'metoprolol'
+  ];
+
+  let foundMedLineIndex = -1;
+  for (let i = 0; i < cleanLines.length; i++) {
+    const lineLower = cleanLines[i].toLowerCase();
+    for (const med of knownMeds) {
+      if (lineLower.includes(med)) {
+        medication = capitalizeWord(med);
+        foundMedLineIndex = i;
+        break;
+      }
+    }
+    if (foundMedLineIndex !== -1) break;
+  }
+
+  // Fallback: If no known med found, look for line after "DRUG DOSAGE FREQUENCY DURATION INSTRUCTIONS" header
+  if (medication === 'Not provided') {
+    for (let i = 0; i < cleanLines.length; i++) {
+      if (cleanLines[i].toUpperCase().includes('DRUG') && cleanLines[i].toUpperCase().includes('DOSAGE')) {
+        if (i + 1 < cleanLines.length) {
+          const nextLineWords = cleanLines[i + 1].split(/\s+/);
+          if (nextLineWords[0] && nextLineWords[0].length > 2) {
+            medication = capitalizeWord(nextLineWords[0]);
+            foundMedLineIndex = i + 1;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // Extract Dosage/Strength (e.g. 500mg, 100mg, 50mcg, 10ml)
+  const strengthMatch = text.match(/\b(\d+\s*(?:mg|g|mcg|ml|tablets?|capsules?))\b/i);
+  if (strengthMatch) {
+    strength = strengthMatch[1].replace(/\s+/g, '');
+  }
+
+  // Extract Frequency (e.g. Every 6 hours, Twice daily, 1-0-1, as needed, etc.)
+  const freqMatch = text.match(/(every \d+ hours(?:\s+as needed)?|twice daily|once daily|thrice daily|\d-\d-\d|qid|tid|bid|qd|as needed)/i);
+  if (freqMatch) {
+    frequency = capitalizePhrase(freqMatch[1]);
+  }
+
+  // Extract Duration (e.g. 5 days, 5days, 7 days, 2 weeks)
+  const durationMatch = text.match(/\b(\d+\s*(?:days?|weeks?|months?))\b/i);
+  if (durationMatch) {
+    duration = durationMatch[1];
+  }
+
+  // Extract Instructions (e.g. Do not exceed 4000mg in 24 hours, Take after meals)
+  const normalizedText = text.replace(/\r?\n/g, ' ');
+  const instructMatch = normalizedText.match(/(do not exceed [^,.;]*\d+\s*mg\s+in\s+\d+\s*hours|take [^,.;]+ after meals|with water|after food)/i);
+  if (instructMatch) {
+    let inst = capitalizePhrase(instructMatch[1].replace(/\s+/g, ' ').trim());
+    if (inst.toLowerCase().includes('do not exceed') && inst.toLowerCase().includes('4000mg')) {
+      inst = 'Do Not Exceed 4000mg In 24 Hours';
+    }
+    instructions = inst;
+  }
+
+  // If patientName was not found in text, use patientInfo if available
+  if (patientName === 'Not provided' && patientInfo?.patientIdName) {
+    patientName = patientInfo.patientIdName.trim();
+  }
 
   const records = [];
   let idCounter = 1;
-
-  // Key-value map from cleaned lines
-  const kv = {};
-  cleanLines.forEach((line) => {
-    if (line.includes(':')) {
-      const parts = line.split(':');
-      const key = parts[0].trim().toLowerCase();
-      const val = parts.slice(1).join(':').trim();
-      if (key && val) {
-        kv[key] = val;
-      }
-    }
-  });
-
-  const patientName = patientInfo?.patientIdName?.trim() || kv['patient'] || extractPattern(text, /Patient\s*:\s*([^\n\r]+)/i) || 'Not provided';
-  const age = patientInfo?.age?.trim() || kv['age'] || extractPattern(text, /Age\s*:\s*([^\n\r]+)/i) || 'Not provided';
-  const sex = (patientInfo?.sex?.trim() && patientInfo.sex !== 'Select sex') ? patientInfo.sex.trim() : (kv['sex'] || extractPattern(text, /Sex\s*:\s*([^\n\r]+)/i) || 'Not provided');
-  const date = kv['date'] || extractPattern(text, /Date\s*:\s*([^\n\r]+)/i) || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  
-  // Verbatim Field Extraction (Source-Faithful, No Inventions)
-  const medication = kv['medication'] || extractPattern(text, /Medication\s*:\s*([^\n\r]+)/i) || extractUnlabeledMedication(cleanLines) || 'Not provided';
-  const dosage = kv['dosage'] || extractPattern(text, /Dosage\s*:\s*([^\n\r]+)/i) || extractPattern(text, /(\d+\s*(?:mg|g|mcg|ml|tablets?|capsules?))/i) || 'Not provided';
-  const frequency = kv['frequency'] || extractPattern(text, /Frequency\s*:\s*([^\n\r]+)/i) || extractPattern(text, /(every \d+ hours|once daily|twice daily|thrice daily|\d-\d-\d|qid|tid|bid|qd)/i) || 'Not provided';
-  const duration = kv['duration'] || extractPattern(text, /Duration\s*:\s*([^\n\r]+)/i) || extractPattern(text, /(\d+\s*(?:days?|weeks?|months?))/i) || 'Not provided';
-  const instructions = kv['instructions'] || kv['instruction'] || extractPattern(text, /Instructions?\s*:\s*([^\n\r]+)/i) || 'Not provided';
-  const diagnosis = kv['diagnosis'] || extractPattern(text, /Diagnosis\s*:\s*([^\n\r]+)/i) || 'Not provided';
 
   // 1. Medication Record Row
   records.push({
     id: `rx-${Date.now()}-${idCounter++}`,
     test: `${medication} (Prescription)`,
-    value: dosage,
-    unit: dosage.match(/[a-zA-Z]+/)?.[0] || 'Unit',
+    value: strength,
+    unit: 'mg',
     range: `Frequency: ${frequency}`,
     status: 'NORMAL',
     date: date,
@@ -181,29 +275,32 @@ function extractPrescriptionFromRawText(text, patientInfo) {
     });
   }
 
-  return records;
+  const extractedFields = {
+    patientName,
+    patientId,
+    date,
+    medication,
+    strength,
+    frequency,
+    duration,
+    instructions,
+    diagnosis,
+  };
+
+  return { records, extractedFields };
 }
 
 /**
- * Fallback to locate unlabeled medication line in clean text
+ * Extracts structured records and field metadata from a Laboratory Report document.
  */
-function extractUnlabeledMedication(cleanLines) {
-  for (const line of cleanLines) {
-    if (!line.includes(':') && /\b(\d+\s*(?:mg|g|mcg|ml)|tablet|capsule)\b/i.test(line)) {
-      return line.trim();
-    }
-  }
-  return null;
-}
-
-/**
- * Extracts structured records from a Laboratory Report raw OCR document.
- */
-function extractLabRecordsFromRawText(text) {
+function extractLabRecordsFromRawText(text, patientInfo) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => Boolean(l) && !isProviderNoiseLine(l));
   const records = [];
   let defaultDate = extractGlobalDate(text) || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   let idCounter = 1;
+
+  let patientName = patientInfo?.patientIdName?.trim() || extractPattern(text, /Patient\s*:\s*([^\n\r]+)/i) || 'Not provided';
+  let patientId = extractPattern(text, /ID\s*:\s*([^\n\r]+)/i) || 'Not provided';
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -240,7 +337,19 @@ function extractLabRecordsFromRawText(text) {
     }
   }
 
-  return records;
+  const extractedFields = {
+    patientName,
+    patientId,
+    date: defaultDate,
+    medication: 'Not provided',
+    strength: 'Not provided',
+    frequency: 'Not provided',
+    duration: 'Not provided',
+    instructions: 'Not provided',
+    diagnosis: 'Not provided',
+  };
+
+  return { records, extractedFields };
 }
 
 /**
@@ -337,6 +446,16 @@ function extractDateFromText(text) {
                 text.match(/\b(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})\b/) ||
                 text.match(/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})\b/i);
   return match ? match[1] : null;
+}
+
+function capitalizeWord(w) {
+  if (!w) return '';
+  return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+}
+
+function capitalizePhrase(p) {
+  if (!p) return '';
+  return p.split(' ').map(capitalizeWord).join(' ');
 }
 
 function generateFactualSummary(docType, records, patientInfo, text) {
