@@ -156,7 +156,8 @@ export function analyzeConsistency(records = [], patientInfo = {}, reportText = 
   // 5. Test Measurement Variance Check
   const testMap = {};
   records.forEach((rec) => {
-    const normTest = rec.test.toLowerCase();
+    const testName = rec.test || rec.analyte || rec.medication || 'Observation';
+    const normTest = testName.toLowerCase();
     if (!testMap[normTest]) {
       testMap[normTest] = [];
     }

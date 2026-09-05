@@ -14,6 +14,9 @@ import ProblemAlignmentCard from './components/ProblemAlignmentCard';
 import SafetyNotice from './components/SafetyNotice';
 import ProvenanceTag from './components/ProvenanceTag';
 import SavedRecords from './components/SavedRecords';
+import TopSafetyBanner from './components/TopSafetyBanner';
+import LabTrendsCard from './components/LabTrendsCard';
+import SafetyGuardrailsModal from './components/SafetyGuardrailsModal';
 import { processMedicalReport } from './services/reportProcessor';
 import { analyzeConsistency } from './services/consistencyChecker';
 import { getSavedRecords, saveRecord, deleteRecord } from './services/storageService';
@@ -27,7 +30,6 @@ import {
   Sparkles,
   Shield,
   Layers,
-  CheckSquare,
   Save,
   FolderOpen,
   LayoutDashboard,
@@ -40,6 +42,7 @@ import {
   Users,
   AlertTriangle,
   Download,
+  TrendingUp,
 } from 'lucide-react';
 
 export default function App() {
@@ -47,7 +50,8 @@ export default function App() {
   const [view, setView] = useState('landing'); // 'landing' | 'login' | 'dashboard'
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'saved-records'
   const [currentRecordId, setCurrentRecordId] = useState(null);
-  
+  const [showTopGuardrailsModal, setShowTopGuardrailsModal] = useState(false);
+
   // User Data Isolated Storage
   const [savedRecords, setSavedRecords] = useState(() => getSavedRecords(currentUser?.identifier));
 
@@ -253,6 +257,13 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Top Non-Diagnostic Safety Standard Banner */}
+      <TopSafetyBanner onOpenGuardrails={() => setShowTopGuardrailsModal(true)} />
+
+      {showTopGuardrailsModal && (
+        <SafetyGuardrailsModal onClose={() => setShowTopGuardrailsModal(false)} />
+      )}
+
       <Header
         onGoHome={() => setView('landing')}
         activeTab={activeTab}
@@ -264,7 +275,7 @@ export default function App() {
 
       <div className="dashboard-layout">
         {/* Navigation Sidebar */}
-        <aside className="sidebar-nav">
+        <aside className="sidebar-nav" role="complementary" aria-label="Clinical Navigation Sidebar">
           <div className="sidebar-section">
             <h3 className="sidebar-heading">Navigation</h3>
             <nav className="nav-menu">
@@ -272,6 +283,7 @@ export default function App() {
                 type="button"
                 className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => setActiveTab('dashboard')}
+                aria-label="Workspace Dashboard View"
               >
                 <LayoutDashboard size={16} /> Workspace Dashboard
               </button>
@@ -279,6 +291,7 @@ export default function App() {
                 type="button"
                 className={`nav-item ${activeTab === 'saved-records' ? 'active' : ''}`}
                 onClick={() => setActiveTab('saved-records')}
+                aria-label="Saved Records View"
               >
                 <FolderOpen size={16} /> Saved Records ({savedRecords.length})
               </button>
@@ -297,6 +310,9 @@ export default function App() {
                 </a>
                 <a href="#ocr-quality" className="nav-item">
                   <Cpu size={16} /> OCR Quality & Verification
+                </a>
+                <a href="#lab-trends" className="nav-item">
+                  <TrendingUp size={16} /> Lab Trends & Ranges
                 </a>
                 <a href="#structured-record" className="nav-item">
                   <Table size={16} /> Structured Record
@@ -352,7 +368,7 @@ export default function App() {
         </aside>
 
         {/* Main Workspace Content */}
-        <main className="main-workspace">
+        <main className="main-workspace" role="main" aria-label="Clinical Workspace Main Content">
           {activeTab === 'saved-records' ? (
             <SavedRecords
               savedRecords={savedRecords}
@@ -376,6 +392,7 @@ export default function App() {
                     className="btn btn-secondary btn-sm"
                     onClick={() => window.print()}
                     title="Download PDF report of full clinical analysis"
+                    aria-label="Download PDF Report"
                   >
                     <Download size={14} /> Download PDF Report
                   </button>
@@ -384,6 +401,7 @@ export default function App() {
                     className="btn btn-primary btn-sm"
                     onClick={handleSaveRecord}
                     title="Save current record and processing results"
+                    aria-label="Save Current Record"
                   >
                     <Save size={14} /> Save Record
                   </button>
@@ -392,6 +410,7 @@ export default function App() {
                     className="btn btn-secondary btn-sm"
                     onClick={handleClearWorkspace}
                     title="Clear workspace to enter a new record"
+                    aria-label="Add New Record"
                   >
                     <PlusCircle size={14} /> Add New Record
                   </button>
@@ -464,6 +483,9 @@ export default function App() {
                 isOcrActive={reportText.length > 0}
               />
 
+              {/* Lab Trends & Biomarker Progression */}
+              <LabTrendsCard records={records} />
+
               {/* Section 4: Structured Medical Record */}
               <StructuredRecord records={records} setRecords={setRecords} documentType={documentType} />
 
@@ -496,7 +518,7 @@ export default function App() {
 
       {/* Floating Save Toast Banner */}
       {saveToast && (
-        <div className="save-toast-banner">
+        <div className="save-toast-banner" role="status" aria-live="polite">
           <CheckCircle2 size={16} />
           <span>{saveToast}</span>
         </div>

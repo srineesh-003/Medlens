@@ -3503,6 +3503,33 @@ html, body {
   background-color: #0f766e;
 }
 
+/* Accessibility Focus Rings */
+:focus-visible {
+  outline: 2px solid #0d9488 !important;
+  outline-offset: 2px !important;
+}
+
+/* Top Sticky Safety Banner */
+.top-safety-banner {
+  background: linear-gradient(90deg, #042f2e 0%, #020617 50%, #1e1b4b 100%);
+  color: #ffffff;
+  font-size: 0.72rem;
+  padding: 0.4rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(20, 184, 166, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+/* Lab Trends Card */
+.lab-trends-card {
+  margin-bottom: 1.5rem;
+}
+
+
 
 
 
