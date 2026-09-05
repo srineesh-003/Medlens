@@ -1,0 +1,291 @@
+import React, { useState, useRef } from 'react';
+import { FileText, Upload, Sparkles, CheckCircle2, FileUp, AlertTriangle, Image as ImageIcon, X, RefreshCw } from 'lucide-react';
+import ProvenanceTag from './ProvenanceTag';
+import { scanMedicalImage } from '../services/ocrService';
+import { initialReportText } from '../data/sampleData';
+
+export default function ReportInput({
+  reportText,
+  setReportText,
+  onProcessReport,
+  isProcessing,
+  errorMessage,
+  uploadedFileName = '',
+  setUploadedFileName = () => {},
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastProcessed, setLastProcessed] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [fileError, setFileError] = useState('');
+  const [ocrProgress, setOcrProgress] = useState('');
+  const [isScanningOcr, setIsScanningOcr] = useState(false);
+  const [ocrWarning, setOcrWarning] = useState('');
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      processSelectedFile(file);
+    }
+  };
+
+  const processSelectedFile = async (file) => {
+    setFileError('');
+    setOcrWarning('');
+    setLastProcessed(false);
+
+    // Validate file extension
+    const ext = file.name.split('.').pop().toLowerCase();
+    const textExtensions = ['txt', 'md', 'csv'];
+    const imageExtensions = ['jpg', 'jpeg', 'png'];
+
+    if (!textExtensions.includes(ext) && !imageExtensions.includes(ext)) {
+      setFileError('Unsupported file type. Please upload a .txt, .md, .csv, .jpg, or .png medical report.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setUploadedFileName(file.name);
+
+    // Handle Image Files (.jpg, .jpeg, .png) with Real Tesseract OCR
+    if (imageExtensions.includes(ext)) {
+      setImagePreviewUrl(URL.createObjectURL(file));
+      setIsScanningOcr(true);
+
+      try {
+        const ocrResult = await scanMedicalImage(file, ({ status, progress }) => {
+          setOcrProgress(`${status} (${Math.round(progress * 100)}%)`);
+        });
+
+        setIsScanningOcr(false);
+
+        if (ocrResult.requiresHumanVerification) {
+          setOcrWarning('Low OCR confidence detected. Please verify extracted text for accuracy.');
+        }
+
+        if (ocrResult.rawText && ocrResult.rawText.length > 0) {
+          setReportText(ocrResult.rawText);
+        } else {
+          setFileError('No readable text could be recognized in this image scan. Please verify image clarity or try another report.');
+        }
+      } catch (err) {
+        setIsScanningOcr(false);
+        setFileError(`OCR Extraction Error: ${err.message}`);
+      }
+      return;
+    }
+
+    // Handle Text Files (.txt, .md, .csv)
+    setImagePreviewUrl('');
+    setIsScanningOcr(false);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === 'string') {
+        setReportText(event.target.result);
+        setFileError('');
+      }
+    };
+
+    reader.onerror = () => {
+      setFileError('Unable to read this text file. Please try another report.');
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleProcess = () => {
+    setLastProcessed(false);
+    setFileError('');
+    onProcessReport();
+    setLastProcessed(true);
+  };
+
+  const loadDemoSample = () => {
+    setImagePreviewUrl('');
+    setUploadedFileName('Demo Sample Report');
+    setReportText(initialReportText);
+    setFileError('');
+    setOcrWarning('');
+  };
+
+  const clearImagePreview = () => {
+    setImagePreviewUrl('');
+  };
+
+  return (
+    <section className="dashboard-card report-input-card" id="medical-report">
+      <div className="card-header">
+        <div className="card-title-group">
+          <div className="section-icon-badge">
+            <FileText size={18} />
+          </div>
+          <div>
+            <h2 className="card-title">Medical Report Input</h2>
+            <p className="card-description">Paste unstructured clinical narrative, upload text reports, or scan document photos (.jpg, .png)</p>
+          </div>
+        </div>
+        <div className="header-actions-group">
+          <button type="button" className="btn btn-tertiary btn-sm" onClick={loadDemoSample} title="Load sample lab report for preview">
+            <RefreshCw size={13} /> Load Sample Lab Report
+          </button>
+          <ProvenanceTag category="Extracted from report" showLabelPrefix={true} />
+        </div>
+      </div>
+
+      <div className="report-input-grid">
+        <div className="text-editor-container">
+          <div className="editor-meta-bar">
+            <span className="editor-label">
+              <FileText size={14} /> Report Text Content
+              {uploadedFileName && (
+                <span className="uploaded-file-pill">
+                  {imagePreviewUrl ? <ImageIcon size={12} /> : <FileText size={12} />}
+                  {uploadedFileName}
+                </span>
+              )}
+            </span>
+            <span className="char-count">{reportText.length} characters</span>
+          </div>
+
+          {isScanningOcr && (
+            <div className="ocr-scanning-banner">
+              <RefreshCw size={14} className="spin-icon text-primary" />
+              <span className="ocr-progress-text">{ocrProgress || 'Scanning document image text via OCR...'}</span>
+            </div>
+          )}
+
+          {imagePreviewUrl && !isScanningOcr && (
+            <div className="image-preview-banner">
+              <div className="image-thumbnail-box">
+                <img src={imagePreviewUrl} alt="Medical Document Scan" className="image-thumbnail" />
+              </div>
+              <div className="image-preview-info">
+                <span className="image-preview-title">
+                  <ImageIcon size={14} /> Authentic OCR Scan Loaded ({uploadedFileName})
+                </span>
+                <span className="image-preview-desc">
+                  Text extracted directly from document pixels. You can inspect or edit the extracted text below.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn-icon-danger"
+                title="Remove image preview"
+                onClick={clearImagePreview}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <textarea
+            className="report-textarea"
+            value={reportText}
+            onChange={(e) => {
+              setReportText(e.target.value);
+              setLastProcessed(false);
+              setFileError('');
+            }}
+            placeholder="Paste medical report or prescription text here..."
+            rows={8}
+            aria-label="Medical report text input"
+          />
+        </div>
+
+        <div className="actions-upload-column">
+          <div
+            className={`upload-dropzone ${isDragging ? 'drag-over' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".txt,.md,.csv,.jpg,.jpeg,.png"
+              className="hidden-file-input"
+            />
+            <div className="upload-icon-circle">
+              <FileUp size={20} />
+            </div>
+            <div className="upload-text-group">
+              <span className="upload-primary-text">Drop medical document here</span>
+              <span className="upload-secondary-text">Supported: .txt, .md, .csv, .jpg, .png</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              disabled={isScanningOcr}
+            >
+              <Upload size={14} /> Upload File
+            </button>
+          </div>
+
+          <div className="process-action-area">
+            <button
+              type="button"
+              className={`btn btn-primary btn-process ${isProcessing ? 'processing' : ''}`}
+              onClick={handleProcess}
+              disabled={isProcessing || isScanningOcr}
+            >
+              <Sparkles size={16} className={isProcessing ? 'spin-icon' : ''} />
+              {isProcessing ? 'Processing Clinical Data...' : 'Process Report'}
+            </button>
+
+            {ocrWarning && (
+              <div className="process-error-banner warning-theme">
+                <AlertTriangle size={16} className="warning-icon" />
+                <span>{ocrWarning}</span>
+              </div>
+            )}
+
+            {fileError && (
+              <div className="process-error-banner">
+                <AlertTriangle size={16} className="error-icon" />
+                <span>{fileError}</span>
+              </div>
+            )}
+
+            {errorMessage && !fileError && (
+              <div className="process-error-banner">
+                <AlertTriangle size={16} className="error-icon" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {lastProcessed && !isProcessing && !errorMessage && !fileError && (
+              <div className="process-success-banner">
+                <CheckCircle2 size={16} className="success-icon" />
+                <span>Document processed successfully! Structured observations and AI summary updated below.</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
