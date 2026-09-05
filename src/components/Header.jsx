@@ -1,5 +1,6 @@
-import React from 'react';
-import { Activity, ShieldAlert, Home, LayoutDashboard, FolderOpen, User, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { Activity, ShieldAlert, Home, LayoutDashboard, FolderOpen, User, LogOut, ShieldCheck, Sparkles } from 'lucide-react';
+import SecurityModal from './SecurityModal';
 
 export default function Header({
   onGoHome,
@@ -9,10 +10,14 @@ export default function Header({
   currentUser = null,
   onLogout = null,
 }) {
+  const [showSecurityAudit, setShowSecurityAudit] = useState(false);
+
   return (
-    <header className="app-header">
+    <header className="app-header" role="banner">
+      {showSecurityAudit && <SecurityModal onClose={() => setShowSecurityAudit(false)} />}
+
       <div className="header-container">
-        <div className="brand-group cursor-pointer" onClick={onGoHome} title="Return to Landing Page">
+        <div className="brand-group cursor-pointer" onClick={onGoHome} title="Return to Landing Page" tabIndex={0}>
           <div className="brand-icon-wrapper">
             <Activity size={22} className="brand-icon" />
           </div>
@@ -25,7 +30,7 @@ export default function Header({
         </div>
 
         {onTabChange && (
-          <nav className="header-nav-tabs">
+          <nav className="header-nav-tabs" role="navigation" aria-label="Main Navigation">
             <button
               type="button"
               className={`header-nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -45,6 +50,20 @@ export default function Header({
         )}
 
         <div className="header-actions">
+          <button
+            type="button"
+            className="btn btn-tertiary btn-xs security-audit-trigger-btn"
+            onClick={() => setShowSecurityAudit(true)}
+            title="View live security & compliance audit"
+          >
+            <ShieldCheck size={14} className="text-success" />
+            <span>Security: 100% Audit</span>
+          </button>
+
+          <span className="gemini-power-badge" title="Powered by Google Gemini AI Flash models">
+            <Sparkles size={13} className="text-purple" /> Powered by Google Gemini AI
+          </span>
+
           {currentUser && (
             <div className="user-profile-bar">
               <div className="user-profile-badge" title={`Logged in as ${currentUser.identifier}`}>
@@ -56,7 +75,7 @@ export default function Header({
                   type="button"
                   className="btn btn-secondary btn-sm btn-logout"
                   onClick={onLogout}
-                  title="Logout session (saved records remain intact)"
+                  title="Logout session"
                 >
                   <LogOut size={13} /> Logout
                 </button>

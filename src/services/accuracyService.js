@@ -105,3 +105,4 @@ export function calculateVerifiedAccuracy(fieldMap) {
     statusText: `${accuracyPct}% verified accuracy (${correctCount}/${verifiedFields.length} fields correct)`,
   };
 }
+

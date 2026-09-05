@@ -8,6 +8,7 @@ import OCRQualityCard from './components/OCRQualityCard';
 import StructuredRecord from './components/StructuredRecord';
 import VerificationPanel from './components/VerificationPanel';
 import AISummary from './components/AISummary';
+import ProblemAlignmentCard from './components/ProblemAlignmentCard';
 import SafetyNotice from './components/SafetyNotice';
 import ProvenanceTag from './components/ProvenanceTag';
 import SavedRecords from './components/SavedRecords';
@@ -31,6 +32,7 @@ import {
   PlusCircle,
   CheckCircle2,
   Cpu,
+  Target,
 } from 'lucide-react';
 
 export default function App() {
@@ -405,6 +407,9 @@ export default function App() {
 
               {/* Section 5: AI Summary */}
               <AISummary aiSummaryText={aiSummaryText} />
+
+              {/* Problem Alignment Card */}
+              <ProblemAlignmentCard />
 
               {/* Section 7 & 8: Safety Notice */}
               <SafetyNotice />
