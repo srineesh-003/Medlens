@@ -142,3 +142,4 @@ export function logoutUser() {
     console.error('Failed to clear user session:', err);
   }
 }
+
