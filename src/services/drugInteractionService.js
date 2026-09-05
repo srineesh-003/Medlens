@@ -49,3 +49,4 @@ export function checkDrugInteractions(records = [], reportText = '') {
 
   return foundInteractions;
 }
+

@@ -73,3 +73,4 @@ export default function DrugInteractionCard({ records = [], reportText = '' }) {
     </div>
   );
 }
+

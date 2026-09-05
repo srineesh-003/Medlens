@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/tests/*.test.js"
+    "test": "node --test src/tests/*.test.js",
+    "test:unit": "node --test src/tests/*.test.js",
+    "test:coverage": "node --test src/tests/*.test.js",
+    "coverage": "node --test src/tests/*.test.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
