@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Activity, ShieldAlert, Home, LayoutDashboard, FolderOpen, User, LogOut, ShieldCheck, Sparkles } from 'lucide-react';
+import { Activity, ShieldAlert, Home, LayoutDashboard, FolderOpen, User, LogOut, ShieldCheck, Sparkles, Sun, Moon, CheckCircle2 } from 'lucide-react';
 import SecurityModal from './SecurityModal';
+import SafetyGuardrailsModal from './SafetyGuardrailsModal';
 
 export default function Header({
   onGoHome,
@@ -9,12 +10,22 @@ export default function Header({
   savedCount = 0,
   currentUser = null,
   onLogout = null,
+  doctorName = 'Dr. Sarah Jenkins',
+  onUpdateDoctorName = () => {},
 }) {
   const [showSecurityAudit, setShowSecurityAudit] = useState(false);
+  const [showGuardrailsModal, setShowGuardrailsModal] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => !prev);
+    document.documentElement.classList.toggle('dark-theme');
+  };
 
   return (
     <header className="app-header" role="banner">
       {showSecurityAudit && <SecurityModal onClose={() => setShowSecurityAudit(false)} />}
+      {showGuardrailsModal && <SafetyGuardrailsModal onClose={() => setShowGuardrailsModal(false)} />}
 
       <div className="header-container">
         <div className="brand-group cursor-pointer" onClick={onGoHome} title="Return to Landing Page" tabIndex={0}>
@@ -50,6 +61,28 @@ export default function Header({
         )}
 
         <div className="header-actions">
+          {/* Guardrails Active Status Pill */}
+          <button
+            type="button"
+            className="btn btn-tertiary btn-xs guardrails-status-pill"
+            onClick={() => setShowGuardrailsModal(true)}
+            title="Click to view Clinical Safety & Guardrails Mandate"
+          >
+            <span className="pulse-dot"></span>
+            <span>Guardrails Active</span>
+          </button>
+
+          {/* Theme Toggle Button */}
+          <button
+            type="button"
+            className="btn btn-secondary btn-xs theme-toggle-btn"
+            onClick={toggleTheme}
+            title="Toggle Light / Dark Theme"
+          >
+            {isDarkMode ? <Sun size={13} className="text-amber" /> : <Moon size={13} />}
+            <span>{isDarkMode ? 'Dark' : 'Light'}</span>
+          </button>
+
           <button
             type="button"
             className="btn btn-tertiary btn-xs security-audit-trigger-btn"
@@ -64,23 +97,24 @@ export default function Header({
             <Sparkles size={13} className="text-purple" /> Powered by Google Gemini AI
           </span>
 
-          {currentUser && (
-            <div className="user-profile-bar">
-              <div className="user-profile-badge" title={`Logged in as ${currentUser.identifier}`}>
-                <User size={15} className="user-avatar-icon" />
-                <span className="user-greeting">Hello, {currentUser.userName || 'User'} 👋</span>
-              </div>
-              {onLogout && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm btn-logout"
-                  onClick={onLogout}
-                  title="Logout session"
-                >
-                  <LogOut size={13} /> Logout
-                </button>
-              )}
+          {/* Clinician / Doctor Profile Bar */}
+          <div className="clinician-profile-bar" title={`Attending Physician: ${doctorName}`}>
+            <div className="clinician-avatar">SJ</div>
+            <div className="clinician-details">
+              <span className="clinician-name">{doctorName}</span>
+              <span className="clinician-role">CLINICIAN • Active Auth</span>
             </div>
+          </div>
+
+          {currentUser && onLogout && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm btn-logout"
+              onClick={onLogout}
+              title="Logout session"
+            >
+              <LogOut size={13} /> Logout
+            </button>
           )}
 
           {onGoHome && (
@@ -95,8 +129,9 @@ export default function Header({
           )}
 
           <div
-            className="header-safety-indicator"
-            title="MedLens is an information organizer and never diagnoses or prescribes."
+            className="header-safety-indicator cursor-pointer"
+            onClick={() => setShowGuardrailsModal(true)}
+            title="Click to view MedLens Clinical Safety Mandate"
           >
             <ShieldAlert size={16} className="safety-icon" />
             <div className="safety-indicator-text">

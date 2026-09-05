@@ -10,6 +10,7 @@
  */
 
 export const TRACKED_FIELDS = [
+  { key: 'doctorName', label: 'Doctor / Physician Name' },
   { key: 'patientName', label: 'Patient Name' },
   { key: 'patientId', label: 'Patient ID' },
   { key: 'date', label: 'Date' },

@@ -116,6 +116,14 @@ function extractPrescriptionFromRawText(text, patientInfo) {
   let duration = 'Not provided';
   let instructions = 'Not provided';
 
+  let doctorName = patientInfo?.doctorName?.trim() || 'Dr. Sarah Jenkins';
+  
+  // Extract Doctor / Physician from text if present
+  const docMatch = text.match(/(?:Dr\.|Doctor|Physician|Attending)\s*[:\s]*([a-zA-Z\s.]+)/i);
+  if (docMatch && docMatch[1].trim().length > 2) {
+    doctorName = `Dr. ${docMatch[1].replace(/^Dr\.?\s*/i, '').trim()}`;
+  }
+
   // 1. Line-wise & Section Parsing
   for (let i = 0; i < cleanLines.length; i++) {
     const line = cleanLines[i];
@@ -276,6 +284,7 @@ function extractPrescriptionFromRawText(text, patientInfo) {
   }
 
   const extractedFields = {
+    doctorName,
     patientName,
     patientId,
     date,

@@ -3224,6 +3224,267 @@ html, body {
   }
 }
 
+/* ==========================================================================
+   SAFETY GUARDRAILS MODAL & CLINICIAN PROFILE STYLES
+   ========================================================================== */
+.guardrails-modal-card {
+  max-width: 720px;
+  border-radius: var(--radius-xl);
+  background-color: #0f172a;
+  color: white;
+  border: 1px solid #1e293b;
+}
+
+.guardrails-modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #090d16;
+}
+
+.guardrails-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.guardrails-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: rgba(20, 184, 166, 0.15);
+  color: #14b8a6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+.guardrails-header-title h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: white;
+}
+
+.guardrails-header-title p {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.guardrails-modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.regulatory-notice-banner {
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 0.85rem;
+  color: #fef3c7;
+}
+
+.notice-banner-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.regulatory-notice-banner h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 0.25rem;
+}
+
+.regulatory-notice-banner p {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #fde68a;
+}
+
+.guardrails-columns-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.guardrail-column {
+  background-color: #1e293b;
+  border-radius: var(--radius-md);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  border: 1px solid #334155;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.column-header-icon.success { color: #10b981; }
+.column-header-icon.danger  { color: #f43f5e; }
+
+.column-header h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+}
+
+.guardrail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style-type: disc;
+  padding-left: 1.25rem;
+}
+
+.guardrail-list li {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.guardrails-modal-footer {
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #1e293b;
+  display: flex;
+  justify-content: flex-end;
+  background-color: #090d16;
+}
+
+.btn-teal-submit {
+  background-color: #14b8a6;
+  color: white;
+  font-weight: 700;
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: none;
+}
+
+.btn-teal-submit:hover {
+  background-color: #0d9488;
+}
+
+/* Guardrails Active Status Pill */
+.guardrails-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: rgba(20, 184, 166, 0.1);
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  color: #14b8a6;
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
+  animation: pulse 2s infinite;
+}
+
+/* Clinician Profile Bar */
+.clinician-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background-color: var(--slate-100);
+  border: 1px solid var(--border-color);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-md);
+}
+
+.clinician-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background-color: #0d9488;
+  color: white;
+  font-weight: 800;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clinician-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.clinician-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--slate-900);
+  line-height: 1.1;
+}
+
+.clinician-role {
+  font-size: 0.65rem;
+  color: #0d9488;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* Dark Mode Theme Overrides */
+.dark-theme {
+  --bg-main: #090d16;
+  --bg-card: #0f172a;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #1e293b;
+  --slate-50: #090d16;
+  --slate-100: #1e293b;
+  --slate-900: #f8fafc;
+}
+
+.dark-theme body {
+  background-color: #090d16;
+  color: #f8fafc;
+}
+
+.dark-theme .app-header {
+  background-color: #0f172a;
+  border-color: #1e293b;
+}
+
+.dark-theme .dashboard-card {
+  background-color: #0f172a;
+  border-color: #1e293b;
+  color: #f8fafc;
+}
+
+.dark-theme .clinician-profile-bar {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.dark-theme .clinician-name {
+  color: white;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+
 
 
 
