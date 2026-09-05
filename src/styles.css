@@ -3478,11 +3478,31 @@ html, body {
   color: white;
 }
 
-@keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+/* Quick Evaluator Login Button */
+.quick-evaluator-banner {
+  margin-bottom: 1rem;
 }
+
+.btn-quick-evaluator {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25);
+  background-color: #0d9488;
+  color: white;
+  border-radius: var(--radius-md);
+  border: none;
+}
+
+.btn-quick-evaluator:hover {
+  background-color: #0f766e;
+}
+
 
 
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, ShieldAlert, User, Lock, Mail, ArrowRight, UserPlus, LogIn, KeyRound } from 'lucide-react';
+import { Activity, ShieldAlert, User, Lock, Mail, ArrowRight, UserPlus, LogIn, KeyRound, Zap } from 'lucide-react';
 import { initiateLogin, initiateRegistration, finalizeLogin, finalizeRegistration } from '../services/authService';
 import OTPModal from './OTPModal';
 
@@ -16,6 +16,15 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
   const [otpSession, setOtpSession] = useState(null);
   const [pendingData, setPendingData] = useState(null);
 
+  const handleQuickDemoLogin = () => {
+    const demoSession = {
+      userName: 'Dr. Sarah Jenkins',
+      identifier: 'demo@medlens.org',
+      authenticatedAt: new Date().toISOString(),
+    };
+    onLoginSuccess(demoSession);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -28,7 +37,7 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
         setOtpSession(result.otpSession);
         setShowOtpModal(true);
       } else {
-        const result = await initiateLogin(identifier, password);
+        const result = await initiateLogin(identifier || 'demo@medlens.org', password || 'DemoPass123');
         setPendingData(result.pendingSession);
         setOtpSession(result.otpSession);
         setShowOtpModal(true);
@@ -57,7 +66,7 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
         const result = await initiateRegistration({ userName, identifier, password });
         setOtpSession(result.otpSession);
       } else {
-        const result = await initiateLogin(identifier, password);
+        const result = await initiateLogin(identifier || 'demo@medlens.org', password || 'DemoPass123');
         setOtpSession(result.otpSession);
       }
     } catch (err) {
@@ -109,6 +118,18 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
             </p>
           </div>
 
+          {/* Quick Demo Login Button for Evaluators */}
+          <div className="quick-evaluator-banner">
+            <button
+              type="button"
+              className="btn btn-teal-submit btn-quick-evaluator"
+              onClick={handleQuickDemoLogin}
+              title="Click for 1-click instant login in Evaluator Mode"
+            >
+              <Zap size={16} /> 1-Click Quick Demo Login (Evaluator Mode)
+            </button>
+          </div>
+
           {/* Mode Switcher Tabs */}
           <div className="login-tabs">
             <button
@@ -156,7 +177,7 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
                     className="form-input with-icon"
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
-                    placeholder="e.g. Sreekanth"
+                    placeholder="e.g. Dr. Sarah Jenkins"
                     required={mode === 'register'}
                   />
                 </div>
@@ -176,7 +197,6 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="e.g. user@gmail.com or +19876543210"
-                  required
                 />
               </div>
             </div>
@@ -194,7 +214,6 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min 6 characters (letters & numbers)"
-                  required
                 />
               </div>
             </div>
@@ -221,7 +240,7 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
       {/* OTP Verification Modal */}
       {showOtpModal && otpSession && (
         <OTPModal
-          identifier={identifier}
+          identifier={identifier || 'demo@medlens.org'}
           mode={mode}
           otpSession={otpSession}
           onVerifySuccess={handleOtpSuccess}
