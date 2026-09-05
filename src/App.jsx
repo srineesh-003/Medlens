@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
+import LoginPage from './components/LoginPage';
 import Header from './components/Header';
 import PatientInfo from './components/PatientInfo';
 import ReportInput from './components/ReportInput';
@@ -12,6 +13,7 @@ import SavedRecords from './components/SavedRecords';
 import { processMedicalReport } from './services/reportProcessor';
 import { analyzeConsistency } from './services/consistencyChecker';
 import { getSavedRecords, saveRecord, deleteRecord } from './services/storageService';
+import { getCurrentUser, logoutUser } from './services/authService';
 import {
   emptyPatientInfo,
   initialPatientInfo,
@@ -25,7 +27,6 @@ import {
   Table,
   Sparkles,
   Shield,
-  Info,
   Layers,
   CheckSquare,
   RefreshCw,
@@ -37,7 +38,8 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const [view, setView] = useState('landing');
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  const [view, setView] = useState('landing'); // 'landing' | 'login' | 'dashboard'
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'saved-records'
   const [currentRecordId, setCurrentRecordId] = useState(null);
   const [savedRecords, setSavedRecords] = useState(() => getSavedRecords());
@@ -69,6 +71,25 @@ export default function App() {
       setWarnings([]);
     }
   }, [records, patientInfo, reportText]);
+
+  const handleGetStarted = () => {
+    if (currentUser) {
+      setView('dashboard');
+    } else {
+      setView('login');
+    }
+  };
+
+  const handleLoginSuccess = (session) => {
+    setCurrentUser(session);
+    setView('dashboard');
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    setCurrentUser(null);
+    setView('landing');
+  };
 
   const handleProcessReport = async () => {
     setErrorMessage('');
@@ -127,13 +148,13 @@ export default function App() {
   const handleSaveRecord = () => {
     const recordToSave = {
       id: currentRecordId,
-      patientInfo,
+      patientInfo: { ...patientInfo },
       uploadedFileName,
       documentType,
       reportText,
-      records,
-      consistentItems,
-      warnings,
+      records: [...records],
+      consistentItems: [...consistentItems],
+      warnings: [...warnings],
       aiSummaryText,
     };
 
@@ -141,7 +162,7 @@ export default function App() {
     setCurrentRecordId(saved.id);
     setSavedRecords(getSavedRecords());
 
-    const name = patientInfo.name || patientInfo.medicalId || 'Patient Record';
+    const name = patientInfo.patientIdName?.trim() || 'Patient Record';
     setSaveToast(`✓ Saved record for "${name}" to browser storage`);
     setTimeout(() => {
       setSaveToast('');
@@ -159,7 +180,7 @@ export default function App() {
     setWarnings(record.warnings || []);
     setCurrentRecordId(record.id);
     setActiveTab('dashboard');
-    const name = record.patientInfo?.name || record.patientInfo?.medicalId || 'Patient Record';
+    const name = record.patientInfo?.patientIdName?.trim() || 'Patient Record';
     setSaveToast(`Loaded saved record for ${name}`);
     setTimeout(() => {
       setSaveToast('');
@@ -179,7 +200,16 @@ export default function App() {
   };
 
   if (view === 'landing') {
-    return <LandingPage onGetStarted={() => setView('dashboard')} />;
+    return <LandingPage onGetStarted={handleGetStarted} />;
+  }
+
+  if (view === 'login') {
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onBackToLanding={() => setView('landing')}
+      />
+    );
   }
 
   return (
@@ -189,6 +219,8 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         savedCount={savedRecords.length}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       <div className="dashboard-layout">

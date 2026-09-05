@@ -1,11 +1,13 @@
 import React from 'react';
-import { Activity, ShieldAlert, Home, LayoutDashboard, FolderOpen } from 'lucide-react';
+import { Activity, ShieldAlert, Home, LayoutDashboard, FolderOpen, User, LogOut } from 'lucide-react';
 
 export default function Header({
   onGoHome,
   activeTab = 'dashboard',
   onTabChange,
   savedCount = 0,
+  currentUser = null,
+  onLogout = null,
 }) {
   return (
     <header className="app-header">
@@ -43,6 +45,25 @@ export default function Header({
         )}
 
         <div className="header-actions">
+          {currentUser && (
+            <div className="user-profile-bar">
+              <div className="user-profile-badge" title={`Logged in as ${currentUser.identifier}`}>
+                <User size={15} className="user-avatar-icon" />
+                <span className="user-greeting">Hello, {currentUser.userName || 'User'} 👋</span>
+              </div>
+              {onLogout && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm btn-logout"
+                  onClick={onLogout}
+                  title="Logout session (saved records remain intact)"
+                >
+                  <LogOut size={13} /> Logout
+                </button>
+              )}
+            </div>
+          )}
+
           {onGoHome && (
             <button
               type="button"
