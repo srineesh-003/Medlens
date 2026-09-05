@@ -13,11 +13,26 @@ const USERS_KEY = 'medlens_users';
 const SESSION_KEY = 'medlens_user_session';
 
 /**
+ * Sanitizes input strings against XSS injection attacks.
+ */
+export function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+/**
  * Validates Email format
  */
 export function isValidEmail(email) {
+  const clean = sanitizeInput(email);
   const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return re.test(String(email).toLowerCase());
+  return re.test(String(clean).toLowerCase());
 }
 
 /**

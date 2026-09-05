@@ -16,6 +16,7 @@ import ProvenanceTag from './components/ProvenanceTag';
 import SavedRecords from './components/SavedRecords';
 import TopSafetyBanner from './components/TopSafetyBanner';
 import LabTrendsCard from './components/LabTrendsCard';
+import DrugInteractionCard from './components/DrugInteractionCard';
 import SafetyGuardrailsModal from './components/SafetyGuardrailsModal';
 import { processMedicalReport } from './services/reportProcessor';
 import { analyzeConsistency } from './services/consistencyChecker';
@@ -485,6 +486,9 @@ export default function App() {
 
               {/* Lab Trends & Biomarker Progression */}
               <LabTrendsCard records={records} />
+
+              {/* Drug-Drug Interaction Safety Checker */}
+              <DrugInteractionCard records={records} reportText={reportText} />
 
               {/* Section 4: Structured Medical Record */}
               <StructuredRecord records={records} setRecords={setRecords} documentType={documentType} />
