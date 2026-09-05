@@ -6,7 +6,9 @@ import PatientInfo from './components/PatientInfo';
 import ReportInput from './components/ReportInput';
 import OCRQualityCard from './components/OCRQualityCard';
 import StructuredRecord from './components/StructuredRecord';
-import VerificationPanel from './components/VerificationPanel';
+import ConflictRegistry from './components/ConflictRegistry';
+import SourceEvidence from './components/SourceEvidence';
+import AuditTrail from './components/AuditTrail';
 import AISummary from './components/AISummary';
 import ProblemAlignmentCard from './components/ProblemAlignmentCard';
 import SafetyNotice from './components/SafetyNotice';
@@ -33,6 +35,10 @@ import {
   CheckCircle2,
   Cpu,
   Target,
+  ScanText,
+  RotateCcw,
+  Users,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function App() {
@@ -229,6 +235,8 @@ export default function App() {
     }, 2500);
   };
 
+  const pendingWarningsCount = warnings.filter((w) => !w.isReviewed).length;
+
   if (view === 'landing') {
     return <LandingPage onGetStarted={handleGetStarted} />;
   }
@@ -293,10 +301,19 @@ export default function App() {
                   <Table size={16} /> Structured Record
                 </a>
                 <a href="#review-verify" className="nav-item">
-                  <CheckSquare size={16} /> Review & Verify
+                  <AlertTriangle size={16} /> Conflict Detection ({pendingWarningsCount})
+                </a>
+                <a href="#source-evidence" className="nav-item">
+                  <ScanText size={16} /> Source Evidence
+                </a>
+                <a href="#audit-trail" className="nav-item">
+                  <RotateCcw size={16} /> Audit Trail
                 </a>
                 <a href="#ai-summary" className="nav-item">
                   <Sparkles size={16} /> AI Summary
+                </a>
+                <a href="#clinical-alignment" className="nav-item">
+                  <Target size={16} /> Clinical Alignment
                 </a>
                 <a href="#safety-notice" className="nav-item">
                   <Shield size={16} /> Safety Notice
@@ -372,6 +389,49 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Dashboard Overview Summary Cards */}
+              <div className="overview-stats-grid">
+                <div className="overview-stat-card">
+                  <div className="stat-card-icon blue">
+                    <Users size={18} />
+                  </div>
+                  <div className="stat-card-info">
+                    <span className="stat-card-value">{savedRecords.length}</span>
+                    <span className="stat-card-label">Saved Patient Roster</span>
+                  </div>
+                </div>
+
+                <div className="overview-stat-card">
+                  <div className="stat-card-icon green">
+                    <FileText size={18} />
+                  </div>
+                  <div className="stat-card-info">
+                    <span className="stat-card-value">{records.length}</span>
+                    <span className="stat-card-label">Extracted Items</span>
+                  </div>
+                </div>
+
+                <div className="overview-stat-card">
+                  <div className="stat-card-icon amber">
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div className="stat-card-info">
+                    <span className="stat-card-value">{pendingWarningsCount}</span>
+                    <span className="stat-card-label">Pending Conflicts</span>
+                  </div>
+                </div>
+
+                <div className="overview-stat-card">
+                  <div className="stat-card-icon purple">
+                    <Cpu size={18} />
+                  </div>
+                  <div className="stat-card-info">
+                    <span className="stat-card-value">{overallConfidence}%</span>
+                    <span className="stat-card-label">OCR Engine Confidence</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Section 2: Patient Information */}
               <PatientInfo patientInfo={patientInfo} setPatientInfo={setPatientInfo} />
 
@@ -398,11 +458,18 @@ export default function App() {
               {/* Section 4: Structured Medical Record */}
               <StructuredRecord records={records} setRecords={setRecords} documentType={documentType} />
 
-              {/* Phase 3: Review & Verify Panel */}
-              <VerificationPanel
-                consistentItems={consistentItems}
-                warnings={warnings}
-                onToggleReviewed={handleToggleReviewed}
+              {/* Conflict Detection Registry */}
+              <ConflictRegistry warnings={warnings} onToggleReviewed={handleToggleReviewed} />
+
+              {/* Source Evidence & Line Tracing */}
+              <SourceEvidence reportText={reportText} records={records} />
+
+              {/* Audit Trail */}
+              <AuditTrail
+                currentUser={currentUser}
+                uploadedFileName={uploadedFileName}
+                recordsCount={records.length}
+                isOcrActive={reportText.length > 0}
               />
 
               {/* Section 5: AI Summary */}

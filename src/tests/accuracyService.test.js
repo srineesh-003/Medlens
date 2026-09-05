@@ -42,3 +42,4 @@ test('Accuracy Service - Calculated Verified Accuracy After User Edits', () => {
   assert.strictEqual(accuracy.correctCount, 2);
   assert.strictEqual(accuracy.verifiedAccuracyPercentage, 100);
 });
+

@@ -20,3 +20,4 @@ test('Security & Auth - Password Validation', () => {
   assert.strictEqual(isValidPassword('Pass1234'), true);
   assert.strictEqual(isValidPassword('123'), false);
 });
+
