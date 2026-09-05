@@ -7,7 +7,8 @@
  * 1. Patient Information form is the SINGLE SOURCE OF TRUTH.
  * 2. Never use hardcoded names, ages, or IDs.
  * 3. Extract ONLY facts present in source OCR text.
- * 4. If a field is missing, set to "Not provided" rather than inventing demo values.
+ * 4. If a field is missing, set to "Not provided" or "Unknown" rather than inventing demo values.
+ * 5. Provider headers/footers (doctor names, clinic addresses, contact details, signatures) are filtered out.
  */
 
 export async function processMedicalReport(reportText, patientInfo = {}) {
@@ -45,7 +46,8 @@ function detectDocumentType(text) {
   const lower = text.toLowerCase();
   const rxKeywords = [
     'prescription', 'rx', 'medication', 'dosage', 'frequency', 'duration',
-    'instructions', 'acetaminophen', 'take ', 'tablet', 'capsule', '500mg', 'every 6 hours'
+    'instructions', 'acetaminophen', 'take ', 'tablet', 'capsule', '500mg', 'every 6 hours',
+    'amoxicillin', 'ibuprofen', 'mg', 'mcg', 'ml'
   ];
   const labKeywords = [
     'reference range', 'g/dl', 'mg/dl', 'miu/l', 'ng/ml', 'complete blood count',
@@ -73,16 +75,46 @@ function detectDocumentType(text) {
 }
 
 /**
- * Extracts structured records from a Prescription raw OCR document.
+ * Detects whether a line is provider header/footer noise (doctor info, clinic address, signature).
+ */
+function isProviderNoiseLine(line) {
+  const l = line.trim().toLowerCase();
+  if (!l) return true;
+
+  // Mandatory fields should NEVER be treated as noise
+  if (/^(medication|dosage|frequency|duration|instructions?|diagnosis|patient|age|sex|date)\s*:/i.test(l)) {
+    return false;
+  }
+
+  // Header / Provider patterns
+  if (/^(dr\.|doctor|prof\.|physician|md|mbbs|ms|bams|bhms)\b/i.test(l)) return true;
+  if (/\b(clinic|hospital|health center|medical center|healthcare|department of)\b/i.test(l)) return true;
+  if (/\b(reg\s*no|registration|license|lic\s*no|npi|dea)\b/i.test(l)) return true;
+  
+  // Contact & Address patterns
+  if (/^(tel|phone|ph|fax|email|web|website|addr|address)\s*:/i.test(l)) return true;
+
+  // Footer / Signature patterns
+  if (/^(signature|signed by|authorized signatory|stamp|ref fill|page \d)/i.test(l)) return true;
+  if (/^[-=_*]{3,}$/.test(l)) return true;
+
+  return false;
+}
+
+/**
+ * Extracts structured records from a Prescription raw OCR document line-by-line.
  */
 function extractPrescriptionFromRawText(text, patientInfo) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // Strip provider noise lines
+  const cleanLines = rawLines.filter((line) => !isProviderNoiseLine(line));
+
   const records = [];
   let idCounter = 1;
 
-  // Key-value map from raw OCR text
+  // Key-value map from cleaned lines
   const kv = {};
-  lines.forEach((line) => {
+  cleanLines.forEach((line) => {
     if (line.includes(':')) {
       const parts = line.split(':');
       const key = parts[0].trim().toLowerCase();
@@ -97,20 +129,21 @@ function extractPrescriptionFromRawText(text, patientInfo) {
   const age = patientInfo?.age?.trim() || kv['age'] || extractPattern(text, /Age\s*:\s*([^\n\r]+)/i) || 'Not provided';
   const sex = (patientInfo?.sex?.trim() && patientInfo.sex !== 'Select sex') ? patientInfo.sex.trim() : (kv['sex'] || extractPattern(text, /Sex\s*:\s*([^\n\r]+)/i) || 'Not provided');
   const date = kv['date'] || extractPattern(text, /Date\s*:\s*([^\n\r]+)/i) || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const diagnosis = kv['diagnosis'] || extractPattern(text, /Diagnosis\s*:\s*([^\n\r]+)/i) || 'Clinical Evaluation';
-
-  const medication = kv['medication'] || extractPattern(text, /Medication\s*:\s*([^\n\r]+)/i) || 'Prescribed Item';
-  const dosage = kv['dosage'] || extractPattern(text, /Dosage\s*:\s*([^\n\r]+)/i) || 'As directed';
-  const frequency = kv['frequency'] || extractPattern(text, /Frequency\s*:\s*([^\n\r]+)/i) || 'As directed';
-  const duration = kv['duration'] || extractPattern(text, /Duration\s*:\s*([^\n\r]+)/i) || 'Specified duration';
-  const instructions = kv['instructions'] || kv['instruction'] || extractPattern(text, /Instructions?\s*:\s*([^\n\r]+)/i);
+  
+  // Verbatim Field Extraction (Source-Faithful, No Inventions)
+  const medication = kv['medication'] || extractPattern(text, /Medication\s*:\s*([^\n\r]+)/i) || extractUnlabeledMedication(cleanLines) || 'Not provided';
+  const dosage = kv['dosage'] || extractPattern(text, /Dosage\s*:\s*([^\n\r]+)/i) || extractPattern(text, /(\d+\s*(?:mg|g|mcg|ml|tablets?|capsules?))/i) || 'Not provided';
+  const frequency = kv['frequency'] || extractPattern(text, /Frequency\s*:\s*([^\n\r]+)/i) || extractPattern(text, /(every \d+ hours|once daily|twice daily|thrice daily|\d-\d-\d|qid|tid|bid|qd)/i) || 'Not provided';
+  const duration = kv['duration'] || extractPattern(text, /Duration\s*:\s*([^\n\r]+)/i) || extractPattern(text, /(\d+\s*(?:days?|weeks?|months?))/i) || 'Not provided';
+  const instructions = kv['instructions'] || kv['instruction'] || extractPattern(text, /Instructions?\s*:\s*([^\n\r]+)/i) || 'Not provided';
+  const diagnosis = kv['diagnosis'] || extractPattern(text, /Diagnosis\s*:\s*([^\n\r]+)/i) || 'Not provided';
 
   // 1. Medication Record Row
   records.push({
     id: `rx-${Date.now()}-${idCounter++}`,
     test: `${medication} (Prescription)`,
     value: dosage,
-    unit: 'Tablet',
+    unit: dosage.match(/[a-zA-Z]+/)?.[0] || 'Unit',
     range: `Frequency: ${frequency}`,
     status: 'NORMAL',
     date: date,
@@ -119,7 +152,7 @@ function extractPrescriptionFromRawText(text, patientInfo) {
   });
 
   // 2. Prescription Instructions Row
-  if (instructions) {
+  if (instructions && instructions !== 'Not provided') {
     records.push({
       id: `rx-${Date.now()}-${idCounter++}`,
       test: 'Prescription Instructions',
@@ -134,7 +167,7 @@ function extractPrescriptionFromRawText(text, patientInfo) {
   }
 
   // 3. Clinical Diagnosis Row
-  if (diagnosis) {
+  if (diagnosis && diagnosis !== 'Not provided') {
     records.push({
       id: `rx-${Date.now()}-${idCounter++}`,
       test: 'Prescription Diagnosis',
@@ -152,10 +185,22 @@ function extractPrescriptionFromRawText(text, patientInfo) {
 }
 
 /**
+ * Fallback to locate unlabeled medication line in clean text
+ */
+function extractUnlabeledMedication(cleanLines) {
+  for (const line of cleanLines) {
+    if (!line.includes(':') && /\b(\d+\s*(?:mg|g|mcg|ml)|tablet|capsule)\b/i.test(line)) {
+      return line.trim();
+    }
+  }
+  return null;
+}
+
+/**
  * Extracts structured records from a Laboratory Report raw OCR document.
  */
 function extractLabRecordsFromRawText(text) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => Boolean(l) && !isProviderNoiseLine(l));
   const records = [];
   let defaultDate = extractGlobalDate(text) || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   let idCounter = 1;
@@ -299,7 +344,7 @@ function generateFactualSummary(docType, records, patientInfo, text) {
 
   if (docType === 'Prescription') {
     const rxItem = records.find((r) => r.test.includes('(Prescription)')) || records[0];
-    return `Processed prescription document for ${patientName}.\n• Prescribed Medication: ${rxItem ? rxItem.test.replace(' (Prescription)', '') : 'Medication'} (${rxItem ? rxItem.value : ''})\n• Instructions & Details: ${records.map((r) => `${r.test}: ${r.value} (${r.observation})`).join('; ')}`;
+    return `Processed prescription document for ${patientName}.\n• Prescribed Medication: ${rxItem ? rxItem.test.replace(' (Prescription)', '') : 'Medication'} (${rxItem ? rxItem.value : ''})\n• Details: ${records.map((r) => `${r.test}: ${r.value} (${r.observation})`).join('; ')}`;
   }
 
   const normal = records.filter((r) => r.status === 'NORMAL');

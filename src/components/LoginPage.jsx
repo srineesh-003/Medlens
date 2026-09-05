@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Activity, ShieldAlert, User, Lock, Mail, ArrowRight, UserPlus, LogIn } from 'lucide-react';
-import { loginUser, createProfile } from '../services/authService';
+import { Activity, ShieldAlert, User, Lock, Mail, ArrowRight, UserPlus, LogIn, KeyRound } from 'lucide-react';
+import { initiateLogin, initiateRegistration, finalizeLogin, finalizeRegistration } from '../services/authService';
+import OTPModal from './OTPModal';
 
 export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
@@ -8,21 +9,59 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  // OTP State
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpSession, setOtpSession] = useState(null);
+  const [pendingData, setPendingData] = useState(null);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
 
     try {
       if (mode === 'register') {
-        const session = createProfile({ userName, identifier, password });
-        onLoginSuccess(session);
+        const result = await initiateRegistration({ userName, identifier, password });
+        setPendingData(result.pendingUser);
+        setOtpSession(result.otpSession);
+        setShowOtpModal(true);
       } else {
-        const session = loginUser(identifier, password);
-        onLoginSuccess(session);
+        const result = await initiateLogin(identifier, password);
+        setPendingData(result.pendingSession);
+        setOtpSession(result.otpSession);
+        setShowOtpModal(true);
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please check your details.');
+      setError(err.message || 'Authentication error. Please verify input details.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOtpSuccess = () => {
+    setShowOtpModal(false);
+    if (mode === 'register') {
+      const session = finalizeRegistration(pendingData);
+      onLoginSuccess(session);
+    } else {
+      const session = finalizeLogin(pendingData);
+      onLoginSuccess(session);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      if (mode === 'register') {
+        const result = await initiateRegistration({ userName, identifier, password });
+        setOtpSession(result.otpSession);
+      } else {
+        const result = await initiateLogin(identifier, password);
+        setOtpSession(result.otpSession);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP.');
     }
   };
 
@@ -61,12 +100,12 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
               {mode === 'register' ? <UserPlus size={24} /> : <LogIn size={24} />}
             </div>
             <h2 className="login-title">
-              {mode === 'register' ? 'Create User Profile' : 'Sign In to MedLens'}
+              {mode === 'register' ? 'Create Secure User Profile' : 'Sign In to MedLens'}
             </h2>
             <p className="login-subtitle">
               {mode === 'register'
-                ? 'Set up your local user profile to manage and organize patient records.'
-                : 'Enter your credentials to access your clinical workspace.'}
+                ? 'Set up your authenticated account with 2-Factor OTP verification.'
+                : 'Enter your credentials & 2-Factor OTP to access your clinical workspace.'}
             </p>
           </div>
 
@@ -107,7 +146,7 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
             {mode === 'register' && (
               <div className="form-group">
                 <label htmlFor="userNameInput" className="form-label">
-                  User Name
+                  Full Name
                 </label>
                 <div className="input-icon-wrapper">
                   <User size={16} className="input-icon" />
@@ -136,7 +175,7 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
                   className="form-input with-icon"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. sreekanth@gmail.com or 9876543210"
+                  placeholder="e.g. user@gmail.com or +19876543210"
                   required
                 />
               </div>
@@ -154,14 +193,18 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
                   className="form-input with-icon"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Min 6 characters (letters & numbers)"
                   required
                 />
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary btn-login-submit">
-              {mode === 'register' ? 'Create Profile' : 'Login'} <ArrowRight size={16} />
+            <button
+              type="submit"
+              className="btn btn-primary btn-login-submit"
+              disabled={isSubmitting}
+            >
+              {mode === 'register' ? 'Continue to OTP Verification' : 'Authenticate & Send OTP'} <KeyRound size={16} />
             </button>
           </form>
 
@@ -169,13 +212,23 @@ export default function LoginPage({ onLoginSuccess, onBackToLanding }) {
           <div className="login-demo-notice">
             <ShieldAlert size={16} className="notice-icon" />
             <p>
-              <strong>Demo Authentication System:</strong> Credentials and profiles are stored locally
-              in this browser for hackathon demonstration purposes. Do not enter real production credentials or sensitive medical passwords.
+              <strong>Demo Security Notice:</strong> Passwords are SHA-256 hashed and stored locally per browser session. OTP verification is enforced before dashboard access. Do not enter sensitive production credentials.
             </p>
           </div>
         </div>
       </main>
+
+      {/* OTP Verification Modal */}
+      {showOtpModal && otpSession && (
+        <OTPModal
+          identifier={identifier}
+          mode={mode}
+          otpSession={otpSession}
+          onVerifySuccess={handleOtpSuccess}
+          onResendOtp={handleResendOtp}
+          onCancel={() => setShowOtpModal(false)}
+        />
+      )}
     </div>
   );
 }
-

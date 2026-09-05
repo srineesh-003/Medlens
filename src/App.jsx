@@ -14,13 +14,7 @@ import { processMedicalReport } from './services/reportProcessor';
 import { analyzeConsistency } from './services/consistencyChecker';
 import { getSavedRecords, saveRecord, deleteRecord } from './services/storageService';
 import { getCurrentUser, logoutUser } from './services/authService';
-import {
-  emptyPatientInfo,
-  initialPatientInfo,
-  initialReportText,
-  initialRecords,
-  initialAISummary,
-} from './data/sampleData';
+import { emptyPatientInfo } from './data/sampleData';
 import {
   User,
   FileText,
@@ -29,7 +23,6 @@ import {
   Shield,
   Layers,
   CheckSquare,
-  RefreshCw,
   Save,
   FolderOpen,
   LayoutDashboard,
@@ -42,7 +35,9 @@ export default function App() {
   const [view, setView] = useState('landing'); // 'landing' | 'login' | 'dashboard'
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'saved-records'
   const [currentRecordId, setCurrentRecordId] = useState(null);
-  const [savedRecords, setSavedRecords] = useState(() => getSavedRecords());
+  
+  // User Data Isolated Storage
+  const [savedRecords, setSavedRecords] = useState(() => getSavedRecords(currentUser?.identifier));
 
   const [patientInfo, setPatientInfo] = useState(emptyPatientInfo);
   const [uploadedFileName, setUploadedFileName] = useState('');
@@ -59,6 +54,17 @@ export default function App() {
   // Phase 3 Consistency State
   const [consistentItems, setConsistentItems] = useState([]);
   const [warnings, setWarnings] = useState([]);
+
+  // Sync isolated user records when user changes
+  useEffect(() => {
+    setSavedRecords(getSavedRecords(currentUser?.identifier));
+    if (currentUser?.name && !patientInfo.patientIdName) {
+      setPatientInfo((prev) => ({
+        ...prev,
+        patientIdName: currentUser.name,
+      }));
+    }
+  }, [currentUser]);
 
   // Run consistency check whenever records or patientInfo change
   useEffect(() => {
@@ -82,12 +88,19 @@ export default function App() {
 
   const handleLoginSuccess = (session) => {
     setCurrentUser(session);
+    setSavedRecords(getSavedRecords(session?.identifier));
+    setPatientInfo((prev) => ({
+      ...prev,
+      patientIdName: session.name || prev.patientIdName,
+    }));
     setView('dashboard');
   };
 
   const handleLogout = () => {
     logoutUser();
     setCurrentUser(null);
+    setSavedRecords([]);
+    setPatientInfo(emptyPatientInfo);
     setView('landing');
   };
 
@@ -119,19 +132,8 @@ export default function App() {
     );
   };
 
-  const handleLoadDemoSample = () => {
-    setPatientInfo(initialPatientInfo);
-    setUploadedFileName('Demo Sample Report');
-    setReportText(initialReportText);
-    setRecords(initialRecords);
-    setDocumentType('Laboratory Report');
-    setAiSummaryText(initialAISummary);
-    setErrorMessage('');
-    setCurrentRecordId(null);
-  };
-
   const handleClearWorkspace = () => {
-    setPatientInfo(emptyPatientInfo);
+    setPatientInfo(currentUser?.name ? { ...emptyPatientInfo, patientIdName: currentUser.name } : emptyPatientInfo);
     setUploadedFileName('');
     setReportText('');
     setRecords([]);
@@ -158,12 +160,12 @@ export default function App() {
       aiSummaryText,
     };
 
-    const saved = saveRecord(recordToSave, currentRecordId);
+    const saved = saveRecord(recordToSave, currentRecordId, currentUser?.identifier);
     setCurrentRecordId(saved.id);
-    setSavedRecords(getSavedRecords());
+    setSavedRecords(getSavedRecords(currentUser?.identifier));
 
     const name = patientInfo.patientIdName?.trim() || 'Patient Record';
-    setSaveToast(`✓ Saved record for "${name}" to browser storage`);
+    setSaveToast(`✓ Saved record for "${name}" to user storage`);
     setTimeout(() => {
       setSaveToast('');
     }, 3500);
@@ -188,12 +190,12 @@ export default function App() {
   };
 
   const handleDeleteRecord = (id) => {
-    const updated = deleteRecord(id);
+    const updated = deleteRecord(id, currentUser?.identifier);
     setSavedRecords(updated);
     if (currentRecordId === id) {
       setCurrentRecordId(null);
     }
-    setSaveToast('Record deleted from browser storage.');
+    setSaveToast('Record deleted from user storage.');
     setTimeout(() => {
       setSaveToast('');
     }, 2500);

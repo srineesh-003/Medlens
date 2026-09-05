@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { FileText, Upload, Sparkles, CheckCircle2, FileUp, AlertTriangle, Image as ImageIcon, X, RefreshCw } from 'lucide-react';
+import { FileText, Upload, Sparkles, CheckCircle2, FileUp, AlertTriangle, Image as ImageIcon, X, RefreshCw, Crop } from 'lucide-react';
 import ProvenanceTag from './ProvenanceTag';
+import ImageCropper from './ImageCropper';
 import { scanMedicalImage } from '../services/ocrService';
 import { initialReportText } from '../data/sampleData';
 
@@ -20,6 +21,12 @@ export default function ReportInput({
   const [ocrProgress, setOcrProgress] = useState('');
   const [isScanningOcr, setIsScanningOcr] = useState(false);
   const [ocrWarning, setOcrWarning] = useState('');
+  
+  // Image Cropper States
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropperSourceUrl, setCropperSourceUrl] = useState('');
+  const [rawUploadedFile, setRawUploadedFile] = useState(null);
+
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -34,48 +41,42 @@ export default function ReportInput({
     setOcrWarning('');
     setLastProcessed(false);
 
-    // Validate file extension
+    // 1. File Security Validation: Max Size 10MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError('File size exceeds the 10MB maximum limit. Please select a smaller medical document.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // 2. Extension & MIME Validation
     const ext = file.name.split('.').pop().toLowerCase();
     const textExtensions = ['txt', 'md', 'csv'];
     const imageExtensions = ['jpg', 'jpeg', 'png'];
 
+    const validMimes = [
+      'text/plain', 'text/markdown', 'text/csv', 'application/csv',
+      'image/jpeg', 'image/png', 'image/jpg'
+    ];
+
     if (!textExtensions.includes(ext) && !imageExtensions.includes(ext)) {
-      setFileError('Unsupported file type. Please upload a .txt, .md, .csv, .jpg, or .png medical report.');
+      setFileError('Unsupported file format. Please upload a valid .txt, .md, .csv, .jpg, or .png file.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setUploadedFileName(file.name);
+    setRawUploadedFile(file);
 
-    // Handle Image Files (.jpg, .jpeg, .png) with Real Tesseract OCR
+    // 3. Handle Image Files (.jpg, .jpeg, .png) with Interactive Cropper Flow
     if (imageExtensions.includes(ext)) {
-      setImagePreviewUrl(URL.createObjectURL(file));
-      setIsScanningOcr(true);
-
-      try {
-        const ocrResult = await scanMedicalImage(file, ({ status, progress }) => {
-          setOcrProgress(`${status} (${Math.round(progress * 100)}%)`);
-        });
-
-        setIsScanningOcr(false);
-
-        if (ocrResult.requiresHumanVerification) {
-          setOcrWarning('Low OCR confidence detected. Please verify extracted text for accuracy.');
-        }
-
-        if (ocrResult.rawText && ocrResult.rawText.length > 0) {
-          setReportText(ocrResult.rawText);
-        } else {
-          setFileError('No readable text could be recognized in this image scan. Please verify image clarity or try another report.');
-        }
-      } catch (err) {
-        setIsScanningOcr(false);
-        setFileError(`OCR Extraction Error: ${err.message}`);
-      }
+      const objUrl = URL.createObjectURL(file);
+      setCropperSourceUrl(objUrl);
+      setShowCropper(true); // Launch Cropper modal so user can focus on prescription text
       return;
     }
 
-    // Handle Text Files (.txt, .md, .csv)
+    // 4. Handle Text Files (.txt, .md, .csv)
     setImagePreviewUrl('');
     setIsScanningOcr(false);
     const reader = new FileReader();
@@ -91,6 +92,79 @@ export default function ReportInput({
     };
 
     reader.readAsText(file, 'UTF-8');
+  };
+
+  const handleCropConfirm = async (croppedBlob, croppedDataUrl) => {
+    setShowCropper(false);
+    setImagePreviewUrl(croppedDataUrl);
+    setIsScanningOcr(true);
+    setFileError('');
+    setOcrWarning('');
+
+    try {
+      const ocrResult = await scanMedicalImage(croppedBlob, ({ status, progress }) => {
+        setOcrProgress(`${status} (${Math.round(progress * 100)}%)`);
+      });
+
+      setIsScanningOcr(false);
+
+      if (ocrResult.requiresHumanVerification) {
+        setOcrWarning('Low OCR confidence detected. Please verify extracted text for accuracy.');
+      }
+
+      if (ocrResult.rawText && ocrResult.rawText.length > 0) {
+        setReportText(ocrResult.rawText);
+      } else {
+        setFileError('No readable text could be recognized in the cropped image scan. Try selecting a larger area or improving image resolution.');
+      }
+    } catch (err) {
+      setIsScanningOcr(false);
+      setFileError(`OCR Extraction Error: ${err.message}`);
+    }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    // If no preview URL exists yet, perform full-image scan as fallback
+    if (!imagePreviewUrl && rawUploadedFile) {
+      runDirectImageScan(rawUploadedFile);
+    }
+  };
+
+  const runDirectImageScan = async (file) => {
+    setImagePreviewUrl(cropperSourceUrl || URL.createObjectURL(file));
+    setIsScanningOcr(true);
+    setFileError('');
+
+    try {
+      const ocrResult = await scanMedicalImage(file, ({ status, progress }) => {
+        setOcrProgress(`${status} (${Math.round(progress * 100)}%)`);
+      });
+
+      setIsScanningOcr(false);
+
+      if (ocrResult.requiresHumanVerification) {
+        setOcrWarning('Low OCR confidence detected. Please verify extracted text for accuracy.');
+      }
+
+      if (ocrResult.rawText && ocrResult.rawText.length > 0) {
+        setReportText(ocrResult.rawText);
+      } else {
+        setFileError('No readable text recognized in image scan.');
+      }
+    } catch (err) {
+      setIsScanningOcr(false);
+      setFileError(`OCR Error: ${err.message}`);
+    }
+  };
+
+  const openRecropModal = () => {
+    if (cropperSourceUrl) {
+      setShowCropper(true);
+    } else if (imagePreviewUrl) {
+      setCropperSourceUrl(imagePreviewUrl);
+      setShowCropper(true);
+    }
   };
 
   const handleDragOver = (e) => {
@@ -118,20 +192,23 @@ export default function ReportInput({
     setLastProcessed(true);
   };
 
-  const loadDemoSample = () => {
-    setImagePreviewUrl('');
-    setUploadedFileName('Demo Sample Report');
-    setReportText(initialReportText);
-    setFileError('');
-    setOcrWarning('');
-  };
-
   const clearImagePreview = () => {
     setImagePreviewUrl('');
+    setCropperSourceUrl('');
+    setRawUploadedFile(null);
   };
 
   return (
     <section className="dashboard-card report-input-card" id="medical-report">
+      {/* Interactive Image Cropper Modal */}
+      {showCropper && cropperSourceUrl && (
+        <ImageCropper
+          imageSrc={cropperSourceUrl}
+          onCropConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
+
       <div className="card-header">
         <div className="card-title-group">
           <div className="section-icon-badge">
@@ -139,7 +216,7 @@ export default function ReportInput({
           </div>
           <div>
             <h2 className="card-title">Medical Report Input</h2>
-            <p className="card-description">Paste unstructured clinical narrative, upload text reports, or scan document photos (.jpg, .png)</p>
+            <p className="card-description">Paste unstructured clinical narrative, upload text reports, or crop & scan document photos (.jpg, .png)</p>
           </div>
         </div>
         <div className="header-actions-group">
@@ -179,17 +256,27 @@ export default function ReportInput({
                   <ImageIcon size={14} /> Authentic OCR Scan Loaded ({uploadedFileName})
                 </span>
                 <span className="image-preview-desc">
-                  Text extracted directly from document pixels. You can inspect or edit the extracted text below.
+                  Text extracted directly from cropped pixels. Crop noise was excluded from OCR scan.
                 </span>
               </div>
-              <button
-                type="button"
-                className="btn-icon-danger"
-                title="Remove image preview"
-                onClick={clearImagePreview}
-              >
-                <X size={14} />
-              </button>
+              <div className="preview-banner-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={openRecropModal}
+                  title="Re-crop image area"
+                >
+                  <Crop size={13} /> Re-crop
+                </button>
+                <button
+                  type="button"
+                  className="btn-icon-danger"
+                  title="Remove image preview"
+                  onClick={clearImagePreview}
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
           )}
 
@@ -227,7 +314,7 @@ export default function ReportInput({
             </div>
             <div className="upload-text-group">
               <span className="upload-primary-text">Drop medical document here</span>
-              <span className="upload-secondary-text">Supported: .txt, .md, .csv, .jpg, .png</span>
+              <span className="upload-secondary-text">Supported: .txt, .md, .csv, .jpg, .png (Max 10MB)</span>
             </div>
             <button
               type="button"
