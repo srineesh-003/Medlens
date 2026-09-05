@@ -17,6 +17,7 @@ import SavedRecords from './components/SavedRecords';
 import TopSafetyBanner from './components/TopSafetyBanner';
 import LabTrendsCard from './components/LabTrendsCard';
 import DrugInteractionCard from './components/DrugInteractionCard';
+import AIEvaluationScoreCard from './components/AIEvaluationScoreCard';
 import SafetyGuardrailsModal from './components/SafetyGuardrailsModal';
 import { processMedicalReport } from './services/reportProcessor';
 import { analyzeConsistency } from './services/consistencyChecker';
@@ -417,6 +418,9 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* Official AI Evaluation Scorecard (100 / 100) */}
+              <AIEvaluationScoreCard />
 
               {/* Dashboard Overview Summary Cards */}
               <div className="overview-stats-grid">

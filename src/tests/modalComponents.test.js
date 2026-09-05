@@ -31,3 +31,4 @@ test('Modal Logic: Google Gemini AI Audit configuration contract', () => {
   assert.ok(Array.isArray(GEMINI_CONFIG.safetySettings));
   assert.equal(GEMINI_CONFIG.safetySettings.length, 4);
 });
+

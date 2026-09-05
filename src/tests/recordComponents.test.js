@@ -27,3 +27,4 @@ test('Record Extraction Logic: Rejects 0-length documents gracefully', async () 
     assert.ok(err.message.includes('empty'));
   }
 });
+
