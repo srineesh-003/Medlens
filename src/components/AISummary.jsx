@@ -1,8 +1,8 @@
 import React from 'react';
-import { Sparkles, ShieldAlert } from 'lucide-react';
+import { Sparkles, ShieldAlert, Download, Printer } from 'lucide-react';
 import ProvenanceTag from './ProvenanceTag';
 
-export default function AISummary({ aiSummaryText }) {
+export default function AISummary({ aiSummaryText, onDownloadPDF = () => window.print() }) {
   return (
     <section className="dashboard-card ai-summary-card" id="ai-summary">
       <div className="card-header">
@@ -15,7 +15,17 @@ export default function AISummary({ aiSummaryText }) {
             <p className="card-description">Structured organization of current clinical observations</p>
           </div>
         </div>
-        <ProvenanceTag category="AI generated" showLabelPrefix={true} />
+        <div className="header-actions-group">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm print-hide"
+            onClick={onDownloadPDF}
+            title="Download PDF report of full workspace findings"
+          >
+            <Download size={14} /> Download PDF Report
+          </button>
+          <ProvenanceTag category="AI generated" showLabelPrefix={true} />
+        </div>
       </div>
 
       <div className="summary-body">
@@ -33,4 +43,3 @@ export default function AISummary({ aiSummaryText }) {
     </section>
   );
 }
-

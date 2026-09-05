@@ -39,6 +39,7 @@ import {
   RotateCcw,
   Users,
   AlertTriangle,
+  Download,
 } from 'lucide-react';
 
 export default function App() {
@@ -369,7 +370,15 @@ export default function App() {
                     Enter your patient information and medical report below to structure records and verify data provenance.
                   </p>
                 </div>
-                <div className="banner-actions">
+                <div className="banner-actions print-hide">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => window.print()}
+                    title="Download PDF report of full clinical analysis"
+                  >
+                    <Download size={14} /> Download PDF Report
+                  </button>
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"

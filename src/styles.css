@@ -3159,6 +3159,72 @@ html, body {
   font-weight: 600;
 }
 
+/* ==========================================================================
+   PRINT & PDF DOWNLOAD EXPORT STYLES
+   ========================================================================== */
+@media print {
+  /* Hide non-printable navigation, buttons, and sidebars */
+  .sidebar-nav,
+  .print-hide,
+  .header-actions,
+  .header-nav-tabs,
+  .banner-actions,
+  .upload-dropzone,
+  .crop-modal-overlay,
+  .otp-modal-overlay,
+  .save-toast-banner,
+  .security-audit-trigger-btn,
+  .preview-banner-actions,
+  .actions-upload-column,
+  button {
+    display: none !important;
+  }
+
+  body, .app-container, .dashboard-layout, .main-workspace {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  .dashboard-layout {
+    display: block !important;
+  }
+
+  .dashboard-card {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 1.25rem !important;
+    background: white !important;
+  }
+
+  .report-textarea {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+    color: black !important;
+    height: auto !important;
+  }
+
+  .welcome-banner {
+    background: #0f172a !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .table-data-row, .table-header-row {
+    grid-template-columns: 140px 1fr 120px 120px !important;
+  }
+
+  .action-cell {
+    display: none !important;
+  }
+}
+
+
 
 
 
